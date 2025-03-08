@@ -34,4 +34,6 @@ typedef struct flash_context flash_context_t;
 
 uint flash_spi_init(flash_context_t *flash_context);
 
+void flash_reset(flash_context_t *flash_context);
+
 #endif // PICO_FLASH_H
