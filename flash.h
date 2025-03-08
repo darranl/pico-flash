@@ -30,10 +30,26 @@ struct flash_context
     uint cs_pin;
 };
 
+struct flash_device_info {
+    uint8_t manufacturer_id;
+    uint8_t device_id;
+    uint8_t jedec_id[3];
+    uint8_t unique_id[8];
+    uint8_t status_register_1;
+    uint8_t status_register_2;
+    uint8_t status_register_3;
+};
+
 typedef struct flash_context flash_context_t;
+typedef struct flash_device_info flash_device_info_t;
 
 uint flash_spi_init(flash_context_t *flash_context);
 
 void flash_reset(flash_context_t *flash_context);
+
+/**
+ * Load the device information from the flash device.
+ */
+void flash_load_device_info(flash_context_t *flash_context, flash_device_info_t *device_info);
 
 #endif // PICO_FLASH_H

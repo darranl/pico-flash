@@ -100,6 +100,72 @@ static void _wb_reset(flash_context_t *flash_context)
      sleep_us(30);
  }
 
+ static uint8_t _wb_release_power_down_id(flash_context_t *flash_context)
+{
+    // DataSheet Page 44
+    gpio_put(flash_context->cs_pin, 0);
+    uint8_t cmdbuf[4] = {
+            WB_RELEASE_POWER_DOWN_ID,
+            0x00, 0x00, 0x00  // Three dummy bytes
+    };
+    spi_write_blocking(flash_context->spi, cmdbuf, 4);
+    uint8_t data[1];
+    spi_read_blocking(flash_context->spi, 0, data, 1);
+    gpio_put(flash_context->cs_pin, 1);
+
+    return data[0];
+}
+
+static void _wb_read_jdec_id(flash_context_t *flash_context, uint8_t *jdec_id)
+{
+    // DataSheet Page 49
+    gpio_put(flash_context->cs_pin, 0);
+    uint8_t cmd = WB_JEDEC_ID;
+    spi_write_blocking(flash_context->spi, &cmd, 1);
+    spi_read_blocking(flash_context->spi, 0, jdec_id, 3);
+    gpio_put(flash_context->cs_pin, 1);
+}
+
+static void _wb_read_unique_id(flash_context_t *flash_context, uint8_t *unique_id)
+{
+    // DataSheet Page 48
+    gpio_put(flash_context->cs_pin, 0);
+    uint8_t cmdbuf[5] = {
+            WB_READ_UNIQUE_ID,
+            0x00, 0x00, 0x00, 0x00  // Four dummy bytes
+    };
+    spi_write_blocking(flash_context->spi, cmdbuf, 5);
+    spi_read_blocking(flash_context->spi, 0, unique_id, 8);
+    gpio_put(flash_context->cs_pin, 1);
+}
+
+static uint8_t _wb_read_status_register(flash_context_t *flash_context,  uint8_t cmd)
+{
+    // DataSheet Page 25
+    gpio_put(flash_context->cs_pin, 0);
+    spi_write_blocking(flash_context->spi, &cmd, 1);
+    uint8_t data[1];
+    spi_read_blocking(flash_context->spi, 0, data, 1);
+    gpio_put(flash_context->cs_pin, 1);
+
+    return data[0];
+}
+
+static uint8_t _wb_read_status_register_1(flash_context_t *flash_context)
+{
+    return _wb_read_status_register(flash_context,  WB_READ_STATUS_REGISTER_1);
+}
+
+static uint8_t _wb_read_status_register_2(flash_context_t *flash_context)
+{
+    return _wb_read_status_register(flash_context, WB_READ_STATUS_REGISTER_2);
+}
+
+static uint8_t _wb_read_status_register_3(flash_context_t *flash_context)
+{
+    return _wb_read_status_register(flash_context, WB_READ_STATUS_REGISTER_3);
+}
+
 /*
  * API Implementation
  */
@@ -136,4 +202,14 @@ void flash_reset(flash_context_t *flash_context)
 {
     _wb_enable_reset_reset(flash_context);
     printf("Software Reset\n");
+}
+
+void flash_load_device_info(flash_context_t *flash_context, flash_device_info_t *device_info)
+{
+    device_info->manufacturer_id = _wb_release_power_down_id(flash_context);
+    _wb_read_jdec_id(flash_context, device_info->jedec_id);
+    _wb_read_unique_id(flash_context, device_info->unique_id);
+    device_info->status_register_1 = _wb_read_status_register_1(flash_context);
+    device_info->status_register_2 = _wb_read_status_register_2(flash_context);
+    device_info->status_register_3 = _wb_read_status_register_3(flash_context);
 }
