@@ -116,13 +116,13 @@ static void _wb_reset(flash_context_t *flash_context)
     return data[0];
 }
 
-static void _wb_read_jdec_id(flash_context_t *flash_context, uint8_t *jdec_id)
+static void _wb_read_jedec_id(flash_context_t *flash_context, uint8_t *jedec_id)
 {
     // DataSheet Page 49
     gpio_put(flash_context->cs_pin, 0);
     uint8_t cmd = WB_JEDEC_ID;
     spi_write_blocking(flash_context->spi, &cmd, 1);
-    spi_read_blocking(flash_context->spi, 0, jdec_id, 3);
+    spi_read_blocking(flash_context->spi, 0, jedec_id, 3);
     gpio_put(flash_context->cs_pin, 1);
 }
 
@@ -204,12 +204,62 @@ void flash_reset(flash_context_t *flash_context)
     printf("Software Reset\n");
 }
 
+bool flash_post_reset_test(flash_context_t *flash_context)
+{
+    // At the moment only one specific chip is supported, later this function
+    // could be updated to capture state and update the flash_context ready for
+    // the specific chip.
+
+    // Check the busy bit first to ensure the device is ready to respond.
+    uint8_t status_register_1 = _wb_read_status_register_1(flash_context);
+    if ((status_register_1 & WB_STATUS_REGISTER_1_BUSY_MASK) != 0)
+    {
+        printf("Flash device is busy after reset\n");
+        return false;
+    }
+
+    uint8_t device_id = _wb_release_power_down_id(flash_context);
+    if (device_id != 0x16)
+    {
+        printf("Device ID is not as expected 0x%02x\n", device_id);
+        return false;
+    }
+
+    uint8_t jedec_id[3];
+    _wb_read_jedec_id(flash_context, jedec_id);
+
+    if (jedec_id[0] != 0xEF)
+    {
+        printf("JEDEC Manufacturer ID is not as expected 0x%02x\n", jedec_id[0]);
+        return false;
+    }
+
+    if (jedec_id[1] != 0x40)
+    {
+        printf("JEDEC Memory Type is not as expected 0x%02x\n", jedec_id[1]);
+        return false;
+    }
+
+    if (jedec_id[2] != 0x17)
+    {
+        printf("JEDEC Capacity is not as expected 0x%02x\n", jedec_id[2]);
+        return false;
+    }
+
+    return true;
+}
+
 void flash_load_device_info(flash_context_t *flash_context, flash_device_info_t *device_info)
 {
     device_info->manufacturer_id = _wb_release_power_down_id(flash_context);
-    _wb_read_jdec_id(flash_context, device_info->jedec_id);
+    _wb_read_jedec_id(flash_context, device_info->jedec_id);
     _wb_read_unique_id(flash_context, device_info->unique_id);
     device_info->status_register_1 = _wb_read_status_register_1(flash_context);
     device_info->status_register_2 = _wb_read_status_register_2(flash_context);
     device_info->status_register_3 = _wb_read_status_register_3(flash_context);
+}
+
+bool flash_is_busy(flash_context_t *flash_context)
+{
+    return (_wb_read_status_register_1(flash_context) & WB_STATUS_REGISTER_1_BUSY_MASK) != 0;
 }

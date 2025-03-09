@@ -17,6 +17,8 @@
 #ifndef PICO_FLASH_H
 #define PICO_FLASH_H
 
+#include <stdbool.h>
+
 #include "hardware/spi.h"
 
 // Status Register 1 Bit masks
@@ -65,13 +67,45 @@ struct flash_device_info {
 typedef struct flash_context flash_context_t;
 typedef struct flash_device_info flash_device_info_t;
 
+/*
+ * Initialise SPI to communicate with the flash IC.
+ *
+ * Other than setting some SIO pins to the correct state this function does not
+ * perform any communication with the flash IC.
+*/
 uint flash_spi_init(flash_context_t *flash_context);
 
+/*
+ * Perform a software reset on the flash IC.
+ *
+ * This does not perform any reset operation on the data stored on the flash IC.
+*/
 void flash_reset(flash_context_t *flash_context);
+
+/*
+ * Perform a post reset test to ensure the flash IC is ready for use.
+ *
+ * This will check the following are as expected:
+ * - The manufacturer ID is as expected.
+ * - The device ID is as expected.
+ * - The memory type is as expected.
+ * - The capacity is as expected.
+ * - The busy bit is clear.
+ *
+ * If any of these checks fail the function will return false.
+*/
+bool flash_post_reset_test(flash_context_t *flash_context);
 
 /**
  * Load the device information from the flash device.
  */
 void flash_load_device_info(flash_context_t *flash_context, flash_device_info_t *device_info);
+
+/*
+ * Reads status register 1 and tests if the busy bit is set.
+ *
+ * Can be used to detect if a clear or write operation is still in progress.
+*/
+bool flash_is_busy(flash_context_t *flash_context);
 
 #endif // PICO_FLASH_H
