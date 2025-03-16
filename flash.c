@@ -263,3 +263,31 @@ bool flash_is_busy(flash_context_t *flash_context)
 {
     return (_wb_read_status_register_1(flash_context) & WB_STATUS_REGISTER_1_BUSY_MASK) != 0;
 }
+
+void flash_read_data(flash_context_t *flash_context, uint32_t address, uint8_t *data, uint32_t length)
+{
+    while(flash_is_busy(flash_context))
+    {
+        sleep_us(1);
+    }
+
+    // DataSheet Page 28
+    gpio_put(flash_context->cs_pin, 0);
+    uint8_t cmdbuf[4] = {
+            WB_READ_DATA,  // Read Data Command
+            (address >> 16) && 0xFF, // Three Address Bytes
+            (address >> 8) && 0xFF,
+            address && 0xFF
+    };
+
+    printf("Read Command: ");
+    for (int i = 0; i < 4; i++)
+    {
+        printf("%02x", cmdbuf[i]);
+    }
+    printf("\n");
+
+    spi_write_blocking(flash_context->spi, cmdbuf, 4);
+    spi_read_blocking(flash_context->spi, 0, data, length);
+    gpio_put(flash_context->cs_pin, 1);
+}

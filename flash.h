@@ -108,4 +108,11 @@ void flash_load_device_info(flash_context_t *flash_context, flash_device_info_t 
 */
 bool flash_is_busy(flash_context_t *flash_context);
 
+/*
+ * Reads `length` bytes of data from the flash IC starting at `address` and writes it to `data`.
+ *
+ * This function will block whilst the flash device is busy and begin reading once the device is ready.
+*/
+void flash_read_data(flash_context_t *flash_context, uint32_t address, uint8_t *data, uint32_t length);
+
 #endif // PICO_FLASH_H
