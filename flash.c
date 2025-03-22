@@ -275,9 +275,9 @@ void flash_read_data(flash_context_t *flash_context, uint32_t address, uint8_t *
     gpio_put(flash_context->cs_pin, 0);
     uint8_t cmdbuf[4] = {
             WB_READ_DATA,  // Read Data Command
-            (address >> 16) && 0xFF, // Three Address Bytes
-            (address >> 8) && 0xFF,
-            address && 0xFF
+            (address >> 16) & 0xFF, // Three Address Bytes
+            (address >> 8) & 0xFF,
+            address & 0xFF
     };
 
     printf("Read Command: ");
