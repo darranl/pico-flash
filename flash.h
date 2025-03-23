@@ -109,6 +109,14 @@ void flash_load_device_info(flash_context_t *flash_context, flash_device_info_t 
 bool flash_is_busy(flash_context_t *flash_context);
 
 /*
+ * Erase the entire flash chip.
+ *
+ * This function will return immediately, callers should use
+ * `flash_is_busy` to determine when the operation is complete.
+*/
+void flash_chip_erase(flash_context_t *flash_context);
+
+/*
  * Reads `length` bytes of data from the flash IC starting at `address` and writes it to `data`.
  *
  * This function will block whilst the flash device is busy and begin reading once the device is ready.

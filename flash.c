@@ -166,6 +166,22 @@ static uint8_t _wb_read_status_register_3(flash_context_t *flash_context)
     return _wb_read_status_register(flash_context, WB_READ_STATUS_REGISTER_3);
 }
 
+static void _wb_write_enable(flash_context_t *flash_context)
+{
+    // DataSheet Page 24
+    gpio_put(flash_context->cs_pin, 0);
+    uint8_t cmdbuf[1] = {
+            WB_WRITE_ENABLE
+    };
+    spi_write_blocking(flash_context->spi, cmdbuf, 1);
+    gpio_put(flash_context->cs_pin, 1);
+}
+
+static bool _wb_is_write_enabled(flash_context_t *flash_context)
+{
+    return (_wb_read_status_register_1(flash_context) & WB_STATUS_REGISTER_1_WEL_MASK) != 0;
+}
+
 /*
  * API Implementation
  */
@@ -264,12 +280,36 @@ bool flash_is_busy(flash_context_t *flash_context)
     return (_wb_read_status_register_1(flash_context) & WB_STATUS_REGISTER_1_BUSY_MASK) != 0;
 }
 
-void flash_read_data(flash_context_t *flash_context, uint32_t address, uint8_t *data, uint32_t length)
+static inline void _flash_block_while_busy(flash_context_t *flash_context)
 {
     while(flash_is_busy(flash_context))
     {
         sleep_us(1);
     }
+}
+
+void flash_chip_erase(flash_context_t *flash_context)
+{
+    _flash_block_while_busy(flash_context);
+    _wb_write_enable(flash_context);
+    if (!_wb_is_write_enabled(flash_context))
+    {
+        printf("Write Enable failed\n");
+        return;
+    }
+
+    // DataSheet Page 40
+    gpio_put(flash_context->cs_pin, 0);
+    uint8_t cmdbuf[1] = {
+            WB_CHIP_ERASE
+    };
+    spi_write_blocking(flash_context->spi, cmdbuf, 1);
+    gpio_put(flash_context->cs_pin, 1);
+}
+
+void flash_read_data(flash_context_t *flash_context, uint32_t address, uint8_t *data, uint32_t length)
+{
+    _flash_block_while_busy(flash_context);
 
     // DataSheet Page 28
     gpio_put(flash_context->cs_pin, 0);
